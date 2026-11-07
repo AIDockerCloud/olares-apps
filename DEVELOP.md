@@ -12,7 +12,7 @@
 ## 2. 分支拓扑
 
 ```text
-upstream/main  ───────────────►  feature/<app>-v<version>   （交付分支：单应用、1 Commit、PR 源）
+upstream/main  ───────────────►  feature/<app>-v<chart版本>  （交付分支：单应用、1 Commit、PR 源）
       │                                    │
       │ merge（允许 merge commit）           │ PR → beclab/apps:main
       ▼                                    │
@@ -20,7 +20,7 @@ develop  （本地集成：治理层 + 清单 + 多提交） ◄── 合并后
 main     （fork 镜像，本次未改动；落后 upstream 9 个提交）
 ```
 
-要点：**交付分支永远从干净的 `upstream/main` 切，不从 `develop` 切**。`develop` 允许 merge commit，PR 分支严禁 merge commit。
+要点：**交付分支永远从干净的 `upstream/main` 切，不从 `develop` 切**。`develop` 允许 merge commit，PR 分支严禁 merge commit。8 个应用不需要 8 条长期分支 —— 每条 feature 分支都是一次性的临时分支，PR 合并后即删。
 
 ## 3. 常用命令
 
@@ -37,8 +37,14 @@ python3 scripts/pcmp_index.py --check
 
 ## 4. 版本更新 SOP
 
+**分支命名规则（最容易踩坑）**：格式 `feature/<应用名>-v<chart版本>`，`<chart版本>` = `Chart.yaml:version` = `metadata.version`，**不是上游软件版本号**。
+
+- 例：agentj 上游发 0.28.2 → chart 版本定 0.2.20 → 分支 `feature/agentj-v0.2.20`，提交 `[UPDATE][agentj][0.2.20] Agent J 0.28.2`；
+- 上游软件版本只写进 `appVersion` / `spec.versionName` / `image.tag`，不进分支名；
+- chart 版本取「当前 `Chart.yaml:version` 的小版本 +1」，与上游版本号没有换算关系。
+
 1. `git fetch upstream`
-2. `git checkout -b feature/neodb-v1.0.8 upstream/main`（按实际应用与版本命名）
+2. `git checkout -b feature/neodb-v1.0.8 upstream/main`（`v1.0.8` 为 chart 版本）
 3. 按 §5 成组修改**且只修改**该应用的 5 个文件
 4. `helm template <app>` 确认可渲染
 5. `git add <app>` 然后单条提交：`git commit -m "[UPDATE][neodb][1.0.8] Upgrade to upstream x.y.z"`
@@ -49,6 +55,25 @@ python3 scripts/pcmp_index.py --check
 10. 刷新清单：`python3 scripts/owned_apps.py --write`，更新 `ai/STATE.md` 并递增 `revision`
 
 **bugfix** 走同一流程：chart 小版本号递增，中英双语 `upgradeDescription` 写明修复项，提交信息仍用 `[UPDATE]`。
+
+### 4.1 多个应用怎么排期
+
+不用给 8 个应用各留一条长期分支，用「**台账驱动 + 一次性临时分支**」：
+
+1. `develop` 上的 [ai/INVENTORY.md](ai/INVENTORY.md) 是唯一台账，先跑 `python3 scripts/owned_apps.py --check` 确认范围没漂移；
+2. 从台账挑 **1 个**应用，按 SOP 走完 PR；合并后删掉该 feature 分支；
+3. 回 `develop` 同步 upstream（`git merge upstream/main`），`python3 scripts/owned_apps.py --write` 刷新台账，再挑下一个；
+4. 每个应用的上游版本各自查（GitHub Releases / 镜像仓库 tag），台账只记**当前**版本，不负责探测新版本。
+
+**想并行也可以**：同时开多条 feature 分支、各提各的 PR，但每条都必须基于当时的最新 `upstream/main`、单应用、单提交。先合并的 PR 会让 upstream/main 前进，后合并的 PR 会显示 out-of-date，此时用 **rebase**（不要 merge，否则引入 Merge 提交违反规范）更新：
+
+```bash
+git fetch upstream
+git rebase upstream/main
+git push --force-with-lease
+```
+
+为避免反复 rebase，建议**串行**，或一次最多并行 2~3 个。
 
 ## 5. 版本更新要改的 5 个文件 `[事实]`
 

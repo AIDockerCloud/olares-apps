@@ -33,7 +33,7 @@ Lite 档位不建 `ai/TASK.md`，当前唯一活动任务合并维护在 `ai/STA
 3. **先定范围**：只改 `ai/INVENTORY.md` 列出的应用目录；判定依据是 `<app>/owners` 是否含 `AIDockerCloud`，用 `python3 scripts/owned_apps.py --check` 复核清单未漂移；
 4. **改配置先查事实卡**：任何 `OlaresManifest.yaml`、`Chart.yaml`、`templates/` 的改动，先对照 `ai/OLARES.md` 对应章节；
 5. **成组修改**：版本更新固定涉及 5 个文件（`Chart.yaml`、`OlaresManifest.yaml`、`i18n/en-US/OlaresManifest.yaml`、`i18n/zh-CN/OlaresManifest.yaml`、`values.yaml`），字段清单见 `DEVELOP.md`，禁止只改一处；
-6. **提交隔离**：PR 分支必须从干净的 `upstream/main` 切 `feature/<app>-v<version>`，与 upstream 只差 1 个 Commit，不带治理文件、不带其他应用、不引入 Merge 提交；
+6. **提交隔离**：PR 分支必须从干净的 `upstream/main` 切 `feature/<app>-v<chart版本>`（`<chart版本>` 是 `Chart.yaml:version` 小版本 +1，**不是上游软件版本**），与 upstream 只差 1 个 Commit，不带治理文件、不带其他应用、不引入 Merge 提交；一次性临时分支，PR 合并后删除；
 7. **版本与说明同步**：`[UPDATE][<folder>][<chart-version>]<Title>`；bugfix 递增 chart 小版本号并同步中英双语 `upgradeDescription`；
 8. **决策留痕**：权限范围、鉴权级别、镜像来源、分类选择、规范版本基线等变更，须在 `ai/DECISIONS.md` 追加 ADR 并附确认来源，未经确认标 `Proposed`；
 9. **收尾**：跑 `python3 scripts/pcmp_index.py --check` 与 `python3 scripts/owned_apps.py --check`，递增 `ai/STATE.md` 的 `revision`，更新完成项与即时下一步；

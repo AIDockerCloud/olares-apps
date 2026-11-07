@@ -63,14 +63,14 @@
 
 ### 4.6 分支与分发
 
-16. **PR 分支干净且单一**：从最新 `upstream/main` 切 `feature/<app>-v<version>`，与 `upstream/main` 只差 1 个 Commit，无 Merge 提交；提交信息 `[UPDATE][<folder>][<chart-version>]<Title>`。
+16. **PR 分支干净且单一**：从最新 `upstream/main` 切 `feature/<app>-v<chart版本>`，与 `upstream/main` 只差 1 个 Commit，无 Merge 提交；提交信息 `[UPDATE][<folder>][<chart-version>]<Title>`。分支名与提交信息里的版本都是 **chart 版本**（`Chart.yaml:version` / `metadata.version`），小版本 +1，**不是上游软件版本**；上游版本只写进 `appVersion` / `spec.versionName` / `image.tag`。一次性临时分支，PR 合并后删除。
 17. **治理文件与 PR 隔离**：`AGENTS.md`、`DEVELOP.md`、`ai/`、`PROJECT_CONTEXT*.md`、`skills/`、`scripts/` 只存在于 `develop`，禁止进入 PR 分支；`develop` 允许 merge commit，PR 分支不允许。
 18. **规范版本不靠猜**：`olaresManifest.version` 与 `apiVersion` 以目标 OS 版本可安装的真实应用为基线，冲突按 [OLARES.md](OLARES.md) §13 处理。
 19. **分发文件不得误动**：`owners` 变更须经维护者确认；严禁为调试提交 `.suspend` / `.remove`；不扩大审阅范围到清单外应用。
 
 ## 5. 工作流摘要
 
-`git fetch upstream` → 核对 [INVENTORY.md](INVENTORY.md) 选定单个应用 → 从 `upstream/main` 切 `feature/<app>-v<version>` → 按 §4.3 成组改 5 个文件 → `helm template <app>` → 单 Commit → PR 到 `beclab/apps:main` → 合并后同步回 `develop` 并刷新清单与 `STATE.md`。完整命令见 [../DEVELOP.md](../DEVELOP.md)。
+`git fetch upstream` → 核对 [INVENTORY.md](INVENTORY.md) 选定单个应用 → 从 `upstream/main` 切 `feature/<app>-v<chart版本>` → 按 §4.3 成组改文件（以目标应用真实结构为准）→ `helm template <app>` → 单 Commit → PR 到 `beclab/apps:main` → 合并后同步回 `develop`、刷新清单与 `STATE.md` → 删除临时分支。多应用排期见 [../DEVELOP.md](../DEVELOP.md) §4.1。
 
 ## 6. 本地验证方式
 
