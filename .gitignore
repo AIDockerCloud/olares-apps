@@ -19,3 +19,6 @@
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# PCMP derivative cache (Markdown 是权威，索引可随时重建)
+ai/.cache/
