@@ -38,15 +38,23 @@
 
 3. **四名一致**：应用目录名 == `Chart.yaml:name` == `metadata.name` == `metadata.appid`。
 4. **版本多处同步**：`Chart.yaml` 的 `version` ↔ `OlaresManifest.yaml` 的 `metadata.version` ↔ 提交信息中的 chart 版本；`Chart.yaml` 的 `appVersion` ↔ `spec.versionName` ↔ `values.yaml` 的 `image.tag`。
-5. **镜像版本锁定**：`image.tag` 禁 `latest`，须为具体上游版本；带 `digest` 的应用改 tag 时必须同步 digest。
+5. **镜像版本锁定**：`image.tag` 禁 `latest`，须为具体上游版本；带 `digest` 的应用改 tag 时必须同步 digest。**tag 必须先在 registry 验证存在，禁止用 GitHub release tag 推断镜像 tag** —— 两者前缀规则不同（实证：`syncthing` 的 GitHub tag 是 `v2.1.7`，镜像只有 `2.1.7`；`triliumnext` 反之，镜像 tag 是 `v0.106.1`）。`docker.io` 的 tag 列表在本机只能经 `https://dockerproxy.net/v2/<owner>/<repo>/tags/list` 获取（直连超时、走代理 502），GHCR 用标准 token 接口。
 6. **必备文件齐全**：`i18n/zh-CN`、`i18n/en-US`、`owners`、`.helmignore` 缺一不可。
 
 ### 4.3 版本更新 / bugfix 的字段清单 `[事实]`
 
 > 实证来源：upstream 提交 `0e96ff72`（`[UPDATE][agentj][0.2.20] Agent J 0.28.2`），共改 5 个文件。
 
-7. **五文件基线，但以目标应用真实结构为准**：`Chart.yaml`、`OlaresManifest.yaml`、`i18n/en-US/OlaresManifest.yaml`、`i18n/zh-CN/OlaresManifest.yaml`、`values.yaml` 是提交 `0e96ff72` 的实际改动集合；**镜像版本写法不统一** —— `agentj` / `neodb` 用 `values.yaml:image.tag`，`fastnotesync` / `vaultwarden` 用 `image.version` 且把版本硬编码在 `templates/*.yaml` 的 image 行。改版本前必须 `grep -rn "<旧版本>" <app>/` 全目录检索，禁止照抄五文件清单漏改。
-8. **chart 版本递增**：`Chart.yaml:version` 与 `metadata.version` 必须同时 +1（小版本），bugfix 亦然；`upgradeDescription` 三处（根 manifest + 双语 i18n）必须同步，中文不得留空或沿用旧文案。
+7. **五文件基线，但以目标应用真实结构为准**：`Chart.yaml`、`OlaresManifest.yaml`、`i18n/en-US/OlaresManifest.yaml`、`i18n/zh-CN/OlaresManifest.yaml`、`values.yaml` 是提交 `0e96ff72` 的实际改动集合；**镜像版本写法不统一，实测存在三种形态**，改版本前必须 `grep -rn "<旧版本>" <app>/` 全目录检索，禁止照抄五文件清单漏改：
+
+   | 形态 | 应用 | 镜像 tag 落在哪 |
+   | :--- | :--- | :--- |
+   | `image.tag`（无引号 / 带引号） | `syncthing`、`udctl`、`mindwtr`、`agentj` | `values.yaml`，模板引用 `.Values.image.tag` |
+   | `image.version` | `fastnotesync`、`vaultwarden` | `values.yaml` **有该字段但模板不引用**，真实 tag 硬编码在 `templates/*.yaml` 的 `image:` 行，**两处都要改** |
+   | 嵌套多镜像 | `neodb`（`image.neodb.tag`）、`triliumnext` | `values.yaml` 嵌套结构，模板引用 `.Values.image.<key>.tag`；边车镜像（typesense / busybox）不得顺手改动 |
+
+   注意 `triliumnext` 模板硬编码的 tag **带 `v` 前缀**而 `values.yaml` 里的不带，两处各自沿用既有写法，不要"统一"成一种。
+8. **chart 版本递增**：`Chart.yaml:version` 与 `metadata.version` 必须同时 +1（小版本），bugfix 亦然；`upgradeDescription` 三处（根 manifest + 双语 i18n）必须同步，中文不得留空或沿用旧文案。**若本次升级涉及数据库迁移、启动期配置校验变严或破坏性变更，必须在说明里写明「先备份」与「先升服务端再升客户端」**（实证：`neodb` 的 migration init-container 迁移失败即不启动；`udctl` 跨 22 个版本有 4 批迁移且 `0.177.1` 专修旧库升级路径；`vaultwarden 1.37.5` 起非法配置值会直接阻止启动）。
 9. **应用自定义字段**：`values.yaml` 内的 `image.version`、应用自定义 `version` / `wheelSha256` 等派生字段，以及 `templates/` 中硬编码的镜像行，须与上游版本对齐，不可只改一处 tag。
 
 ### 4.4 展示元数据
@@ -67,6 +75,7 @@
 17. **治理文件与 PR 隔离**：`AGENTS.md`、`DEVELOP.md`、`ai/`、`PROJECT_CONTEXT*.md`、`skills/`、`scripts/` 只存在于 `develop`，禁止进入 PR 分支；`develop` 允许 merge commit，PR 分支不允许。
 18. **规范版本不靠猜**：`olaresManifest.version` 与 `apiVersion` 以目标 OS 版本可安装的真实应用为基线，冲突按 [OLARES.md](OLARES.md) §13 处理。
 19. **分发文件不得误动**：`owners` 变更须经维护者确认；严禁为调试提交 `.suspend` / `.remove`；不扩大审阅范围到清单外应用。
+20. **GitBot 驳回后的处置**：先分辨是 chart 问题还是 bot 侧故障 —— GitBot 拉取 `metadata.icon` 等外链超时会被误报成 `Chart invalid ... safefetch: TLS handshake timeout`，此时用 `git diff -U0` 确认对应行未被修改、并在本地 `curl -I` 复测该 URL 即可排除。确认是误报后**不要 `close` + `reopen`**：GitBot 会回复 `Please create a new PR instead of reopening this PR.` 并把 PR 保持在 CLOSED；正确做法是**用同一分支重新 `gh pr create`**，检查会重跑且旧 PR 无需处理。实证：`syncthing` #3915 误报 → reopen 被拒 → 新建 #3919 一次通过。
 
 ## 5. 工作流摘要
 
